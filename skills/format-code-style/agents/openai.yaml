@@ -1,0 +1,4 @@
+interface:
+  display_name: "Format Code Style"
+  short_description: "Apply personal coding style"
+  default_prompt: "Use $format-code-style to write, review, and format code in my personal style."
