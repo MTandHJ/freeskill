@@ -1,0 +1,8 @@
+command: python main.py
+envs:
+  root: ../../data
+  dataset: DATASET_NAME
+  device: auto
+params: {}
+defaults:
+  config: configs/DATASET_NAME.yaml

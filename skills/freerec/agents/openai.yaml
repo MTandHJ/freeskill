@@ -1,0 +1,4 @@
+interface:
+  display_name: "FreeRec"
+  short_description: "Use freerec for recommendation experiments"
+  default_prompt: "Use $freerec to prepare data, create tune configs, run grid search, and summarize freerec results."
