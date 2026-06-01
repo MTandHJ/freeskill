@@ -7,7 +7,7 @@ name = "freeskill"
 version = "0.1.0"
 description = "Personal Agent Skills manager for installing skills into Claude Code and Codex."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 
 [project.scripts]
 freeskill = "freeskill.cli:main"
