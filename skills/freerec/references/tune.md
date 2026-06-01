@@ -1,65 +1,50 @@
 # Tune
 
-Use `freerec tune` for grid search over hyperparameters. Each grid combination runs as an independent process.
+`freerec tune` runs grid search. Each parameter combination is one independent trial.
 
-## Usage
+## Command
 
 ```bash
-freerec tune ExperimentName tune.yaml
+freerec tune ExperimentName ConfigFile
 ```
 
-## tune.yaml
+## ConfigFile
 
 ```yaml
-command: python main.py
+command: python main.py # one-trial command
 envs:
-  root: ../../data
+  root: ../../data # dataset root
   dataset: Amazon2014Beauty_550_LOU
-  device: "0,0,1,1"
-params:
+  device: "0,0,1,1,2,2" # concurrent trial slots
+params: # search space; Cartesian product
   lr: [1.e-4, 5.e-4, 1.e-3]
   batch_size: [256, 512]
-defaults:
+defaults: # optional fixed arguments; does not expand trial count
   config: configs/Amazon2014Beauty_550_LOU.yaml
-  optimizer: adam
-  epochs: 100
+  early_stop_patience: 3
 ```
 
-## Field Boundaries
+`device: "0,0,1,1,2,2"` means six concurrent trial slots: two on GPU 0, two on GPU 1, and two on GPU 2. Repeated GPU IDs indicate that multiple independent trials would be assigned to the same GPU.
 
-- `command`: training command for one trial.
-- `envs`: environment-level values passed to each trial, such as root, dataset, and device.
-- `params`: grid search dimensions. freerec runs the Cartesian product.
-- `defaults`: fixed arguments shared by all trials.
+**Goal:** maximize end-to-end tuning throughput. Keep all GPUs busy; use multiple trials per GPU when one trial is lightweight.
 
-## Device
+Recommended steps:
 
-`envs.device` is a comma-separated assignment list. Each entry represents one concurrent trial slot, not multi-GPU training for a single trial.
-
-Examples:
-
-- `device: "0"`: one trial on GPU 0.
-- `device: "0,1"`: two concurrent slots, one on GPU 0 and one on GPU 1.
-- `device: "0,0,1,1"`: four concurrent slots, two on each GPU.
-- `device: cpu`: CPU fallback.
-
-When using `scripts/create_tune_config.py`, `device: auto` in `assets/template.yaml` is resolved to a concrete device string unless `--device` is explicitly passed.
-
-## Config Creation
+1. Check visible GPUs and load.
 
 ```bash
-python skills/freerec/scripts/create_tune_config.py \
-  --output tune.yaml \
-  --dataset Amazon2014Beauty_550_LOU \
-  --config configs/Amazon2014Beauty_550_LOU.yaml \
-  --param "lr=[1.e-4, 5.e-4, 1.e-3]" \
-  --param "batch_size=[256, 512]" \
-  --default "epochs=100"
+if [ -n "${CUDA_VISIBLE_DEVICES:-}" ]; then
+  printf '%s\n' "$CUDA_VISIBLE_DEVICES" | awk -F',' '{print NF}'
+else
+  nvidia-smi --query-gpu=index --format=csv,noheader,nounits | wc -l
+fi
+nvidia-smi --query-gpu=index,memory.used,memory.total,utilization.gpu --format=csv
 ```
 
-Pass `--device "0,1"` to override automatic device assignment. Pass `--force` only when overwriting an existing output is intended.
+2. Estimate one trial's GPU load.
+3. Choose a balanced string: `"0,1,2,3"` for one slot per GPU, `"0,0,1,1,2,2,3,3"` for two slots per GPU.
 
-## freerec tune Output
+## `freerec tune` Output
 
 ```text
 logs/[ExperimentName]/
