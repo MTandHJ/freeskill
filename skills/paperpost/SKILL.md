@@ -27,14 +27,12 @@ Use this skill to turn a research paper path or URL into a Hugo paper post.
 ## Writing Style
 
 - Write in Chinese as a personal research note, not a generic paper summary.
-- Explain the paper through its problem, mechanism, evidence, and personal judgment.
-- Prefer concise bullets, precise claims, formulas, figures, tables, code blocks, and internal links when useful.
-- Do not add filler just to satisfy the post structure.
-- Mark uncertain metadata, links, or paper claims explicitly.
+- Use concise, plain, and direct language.
+- Focus on the problem, mechanism, evidence, and personal judgment; do not aim for exhaustive coverage.
 
 ## References
 
-- `references/template.md`: frontmatter, sections, file naming, and reference format.
+- `references/template.md`: frontmatter, sections, file naming, reference format, and MPT example.
 - `references/tags.md`: existing tags and tag selection rules.
 
 ## Scripts

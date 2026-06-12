@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import re
 import sys
@@ -53,8 +52,7 @@ def parse_pdf(pdf_path: Path) -> Dict[str, Any]:
     if not path.is_file():
         raise PDFParseError(f"PDF path is not a file: {path}")
 
-    parser = choose_pdf_parser()
-    metadata, pages = parser(path)
+    metadata, pages = parse_with_pymupdf(path)
     text = "\n\n".join(page for page in pages if page.strip())
     warnings = build_warnings(metadata, text, pages)
 
@@ -70,42 +68,11 @@ def parse_pdf(pdf_path: Path) -> Dict[str, Any]:
     }
 
 
-def choose_pdf_parser() -> Any:
-    if importlib.util.find_spec("pypdf") is not None:
-        return parse_with_pypdf
-
-    if importlib.util.find_spec("fitz") is not None:
-        return parse_with_pymupdf
-
-    raise PDFParseError(
-        "missing PDF parser dependency; install pypdf or pymupdf, then rerun parse_pdf.py"
-    )
-
-
-def parse_with_pypdf(path: Path) -> Tuple[Dict[str, str], List[str]]:
-    from pypdf import PdfReader  # type: ignore[import-not-found]
-
-    try:
-        reader = PdfReader(str(path))
-    except Exception as exc:
-        raise PDFParseError(f"pypdf failed to open PDF: {exc}") from exc
-
-    info = reader.metadata or {}
-    metadata = {
-        "title": clean_text(str(info.get("/Title", "") or "")),
-        "author": clean_text(str(info.get("/Author", "") or "")),
-    }
-    pages = []
-    for page in reader.pages:
-        try:
-            pages.append(page.extract_text() or "")
-        except Exception:
-            pages.append("")
-    return metadata, pages
-
-
 def parse_with_pymupdf(path: Path) -> Tuple[Dict[str, str], List[str]]:
-    import fitz  # type: ignore[import-not-found]
+    try:
+        import fitz  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise PDFParseError("missing PDF parser dependency; install pymupdf") from exc
 
     try:
         document = fitz.open(path)

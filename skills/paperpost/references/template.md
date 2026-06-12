@@ -1,69 +1,168 @@
 # Template
 
-Use this annotated skeleton for the post shape. Comments explain what to write and should not be copied into the final post.
+Use the first part for post responsibilities. Use the final MPT example for concrete shape, style, density, and section scale.
 
-File naming:
+## File
 
-- Prefer the paper nickname, such as `RQ-VAE.md` or `TIGER.md`.
-- Otherwise use a concise title phrase.
-- Keep `.md`.
-- Check whether the target file already exists before writing.
+- Prefer the paper nickname, such as `MPT.md`.
+
+## Frontmatter
+
+- Hugo metadata for date, title, description, author, tags, and pinned status.
+- Keep `author: MTandHJ`, `draft: false`, and `pinned: false` unless the user says otherwise.
+- Reuse tags from `references/tags.md` when possible; report any new tags.
+- Do not invent venue, year, PDF URL, code URL, author list, or paper claims.
+
+## Sections
+
+- `研究背景`: explain the problem background and relevant prior direction.
+- `核心思想`: introduce the method step by step following the **logical flow**.
+- `关键洞察`: summarize interesting results and surprising details.
+- `继往开来`: write personal judgment about how the paper relates to previous work and future work.
+- `附录`: optional; keep only for useful derivations, prerequisite knowledge, implementation notes, or extra experiments.
+- `参考文献`: required; use the same HTML list format as the example.
+
+## Markdown Rules
+
+- Put a blank line before and after every display formula block.
+- Use standalone `$$` lines for display formulas.
+- In formulas, write comparison symbols with spaces, such as `i < j` and `x > 0`, so Markdown/Hugo does not read them as HTML tags.
+
+## Example
+
+Use this as the main style example for paper posts: concise, bullet-first, focused on a few key mechanisms and judgments rather than exhaustive coverage.
 
 ```markdown
 ---
-date: "YYYY-MM-DD" # writing date
-draft: false # keep false for publishable posts
-title: "Paper Title" # full paper title
-description: "一句话概括" # short Chinese phrase or sentence
-author: MTandHJ # keep unchanged
+date: "2026-06-12"
+draft: false
+title: "Markovian Pre-Trained Transformer for Next-Item Recommendation"
+description: "用合成马尔科夫链预训练推荐模型"
+author: MTandHJ
 tags:
-  - Paper # fixed, always first
-  - <topic1> # reuse topic tags from references/tags.md when possible
-  - <topic2> # optional second topic tag
-  - Empirical | Theoretical | Seminal # paper type; choose what truly applies
-  - <venue> # actual venue, such as SIGIR, KDD, ICLR, arXiv; do not invent
-  - <year> # actual publication/preprint year; do not invent
-pinned: false # keep false unless the user asks otherwise
+  - Paper
+  - Recommendation
+  - Foundation
+  - Simulation
+  - Empirical
+  - arXiv
+  - 2026
+pinned: false
 ---
 
 ## 研究背景
 
-<!-- 问题背景: 这篇论文要解决什么问题, 为什么重要, 和哪些已有方向或站内文章有关. -->
+- (**Recommendation Foundation Model**) 在 pre-training & fine-tuning 的大时代背景下, 大多数推荐模型依旧沿用单场景从头训练的范式, 因此难以享受到预训练模型带来的数据共享和泛化优势. 诚然, 已经有 UnisRec 等工作尝试用多场景推荐数据训练预训练模型, 但在效果和效率上仍然存在明显限制.
+
+- (**Data Simulation**) 在其他领域也会遇到高质量数据难以获取的困境, [PFN](/posts/pfn/) 等方法开始尝试在合成数据上进行预训练, 得到预训练模型, 然后通过 fine-tuning 甚至 zero-shot 推广到真实场景. 那么, 推荐场景是否也存在类似的机会?
+
+- (**符号说明**)
+    - **商品 (item):** $v \in \mathcal{V}$;
+    - **状态 (state):** $s \in \mathcal{S}$;
+    - **状态转移概率矩阵:** $\mathbf{P} \in \mathbb{R}^{|\mathcal{S}| \times |\mathcal{S}|}$;
+    - **狄利克雷分布:** $\text{Dir}(\bm{\alpha})$.
 
 ## 核心思想
 
-<!-- 核心方法: 写机制、架构、数据流、关键公式或算法步骤. -->
-<!-- 公式规则: display formula 前后必须有空行; 使用单独一行的 $$. -->
-<!-- 公式中的比较符写成带空格的形式, 例如 i < j 和 x > 0, 避免被识别成 HTML tag. -->
+### 序列推荐的 "马尔科夫性"
+
+![20260612154628](https://raw.githubusercontent.com/MTandHJ/blog_source/master/images/20260612154628.png)
+
+- (**序列推荐的惯性思维**) 序列推荐模型的结构是逐步复杂化的, 从 Caser、GRU4Rec、SASRec 到现如今的 HSTU, 很自然的想法是: 越复杂的模型内部应该进行了更复杂的“推理”, 从而获得更好的推荐效果. 在上图中, 作者在不同数据集和数据划分标准下, 对不同模型测试了如下三种方案:
+    - **① 顺序排列:** $\mathbb{P}(v_{t+1} | v_t, v_{t-1}, \ldots, v_1; \Theta)$;
+    - **② 部分乱序:** $\mathbb{P}(v_{t+1} | v_t, \{v_{t-1}, \ldots, v_1\}; \Theta)$;
+    - **③ 完全打乱:** $\mathbb{P}(v_{t+1} | \{v_1, v_2, \ldots, v_t\}; \Theta)$.
+
+    如果序列推荐确实高度依赖完整的时序推理, 那么应该有 ① 明显优于 ② 和 ③. 然而, 实际情况更接近 $① \approx ② \gg ③$.
+
+- (**序列推荐的马尔科夫特性**) 因此, 总结来说, 序列推荐并没有因为模型变得更强、更复杂就自然转向更复杂的推理模式. 表现优异的模型, 尤其是 Transformer 类模型, 通常遵循两点: **(I)** 需要特别关注用户最近的交互 $v_t$; **(II)** 用户序列 $[v_1, v_2, \ldots, v_t]$ 中, $\{v_1, v_2, \ldots, v_{t-1}\}$ 提供了一种非序列化的上下文信息, 用于确定用户的整体偏好. 因此, 一个好的序列模型应该近似满足:
+
+    $$
+    \tag{1}
+    \mathbb{P}(v_{t+1} | v_t, v_{t-1}, \ldots, v_1; \Theta)
+    \approx \mathbb{P}(v_{t+1} | v_t, \underbrace{\{v_1, v_2, \ldots\}}_{\text{non-sequential context}}; \Theta).
+    $$
+
+    这实际上是一种特殊意义下的马尔科夫性.
+
+### Markovian Pre-Trained Transformer
+
+![20260612160023](https://raw.githubusercontent.com/MTandHJ/blog_source/master/images/20260612160023.png)
+
+- (**Markovian Pre-Training**) 作者认为, 推荐模型所需要的能力和“根据马尔科夫链轨迹预测下一个状态”的能力是一致的. 给定马尔科夫链的采样轨迹 $[s_1, s_2, \ldots, s_t]$, 想要预测下一个最可能的状态 $s_{t+1}$ 大致需要两步:
+    1. **转移概率矩阵估计 (对应用户偏好估计):** 根据状态转移频率估计状态转移概率矩阵;
+    2. **最大后验估计 (对应关注最新交互 $v_t$):** 根据状态转移概率, 选择从 $s_t$ 出发最可能到达的状态 $s_{t+1} \in \mathcal{S}$.
+
+    因此, MPT 在预训练阶段以 Next-State Prediction 为目标:
+
+    $$
+    \tag{2}
+    \mathcal{L}_{\text{NSP}}(\Theta) =
+    \mathbb{E}_{\mathbb{P} \sim \text{Dir}(\bm{\alpha})}
+    \mathbb{E}_{\{s_t\}_{t=2}^T \sim \mathbf{P} | s_1}
+    \left\{
+    -\sum_{t=1}^{T-1} \log \mathbb{P}(s_{t+1} | s_t, \ldots, s_1; \Theta)
+    \right\}.
+    $$
+
+    其中 $\mathbf{P}$ 是从 Dirichlet 先验中采样的转移概率矩阵.
+
+- (**Recommendation Fine-tuning**) 这一步主要是为了对齐推荐 item embedding 空间和预训练空间. 论文中主要冻结 MPT 主体参数, 只微调输入端的 adaptor:
+
+    $$
+    \tag{3}
+    \mathcal{L}_{\text{NIP}}(\theta) =
+    -\sum_{t=1}^{T-1}
+    \log \mathbb{P}(v_{t+1} | v_t, \ldots, v_1; \Theta, \theta).
+    $$
 
 ## 关键洞察
 
-<!-- 关键实验结果、消融、主要结论、局限、反直觉点, 或源码/复现中发现的重要细节. -->
+- (**Adaptor > LoRA**) 虽然 LoRA 的适配能力更强, 但作者发现在很多场景下, LoRA 微调反而不如只训练输入端 adaptor. 一个合理的解释是: 推荐数据中的噪声和分布差异可能会破坏预训练模型已经获得的能力. 当然, 这并不意味着 LoRA 一定不适合推荐, 更准确地说是 MPT 在多数实验中更偏好轻量的输入空间对齐.
+
+- (**Scaling Law**) 有趣的是, MPT 也展现出了 Scaling Law. 随着预训练数据增加, 下游推荐效果逐步提升, 直到 10B 左右 tokens 后趋于饱和. 作者认为, 这个饱和主要来自 Markovian Pre-training 本身存在理论上界 (见附录).
+
+![20260612162004](https://raw.githubusercontent.com/MTandHJ/blog_source/master/images/20260612162004.png)
 
 ## 继往开来
 
-<!-- 个人判断: 这篇论文和前后工作、未来方向、复现经验或自己的研究问题有什么关系. -->
+- 如何训练出一个推荐预训练模型一直是推荐社区的痛点. MPT 从能力角度出发, 用合成数据激发推荐模型所需能力, 这个范式本身很有意义.
+
+- 这篇文章最有意思的地方不在于又提出了一个 Transformer, 而在于它把序列推荐中的“最近交互 + 非序列上下文”这个现象明确抽象成了 Markovian pre-training. 这为推荐 foundation model 提供了一个更干净、也更容易分析的起点.
 
 ## 附录
 
-<!-- 可选: 只在有补充推导、预备知识、实现细节或额外实验时保留; 否则删除整个章节. -->
+### MPT 的理论界限
+
+- 马尔科夫链的采样过程可以看成是 $|\mathcal{S}|$ 个 categorical distributions $\{\text{Cat}(|\mathcal{S}|; \mathbf{p}_i)\}_{i=1}^{|\mathcal{S}|}$, 其中 $\mathbf{p}_i \in [0, 1]^{|\mathcal{S}|}$ 表示状态 $s_i$ 转移到其他状态的概率, 在本文中采样自 Dirichlet 先验.
+
+- 由于 Dirichlet 先验和多项式分布的共轭关系, 状态转移的后验分布为:
+
+    $$
+    \mathbf{p}_i | [s_1, s_2, \ldots, s_T]
+    \sim \text{Dir}(c_{i,1} + \alpha_1, c_{i,2} + \alpha_2, \ldots, c_{i, |\mathcal{S}|} + \alpha_{|\mathcal{S}|}),
+    $$
+
+    其中 $c_{i,j}$ 表示整个轨迹中从状态 $i$ 转移到状态 $j$ 的次数统计. 因此, 对于任意一条轨迹, Bayes-optimal estimator 为:
+
+    $$
+    \hat{p}_{i,j}
+    = \mathbb{E}[p_{i,j} | [s_1, s_2, \ldots, s_T]]
+    = \frac{c_{i,j} + \alpha_j}{\sum_{k=1}^{|\mathcal{S}|}(c_{i,k} + \alpha_k)}.
+    $$
+
+    MPT 预训练只能收敛到这个估计结果附近, 因此不同于一般的 Scaling Law, MPT 存在一个明确的理论界限.
 
 ## 参考文献
 
 <ol class="reference">
   <li>
-    Author(s)
-    <u>Title.</u>
-    <i>Venue</i>, Year.
-    <a href="URL" style="color: #007acc; font-weight: bold; text-decoration: none;">[PDF]</a>
-    <a href="URL" style="color: #007acc; font-weight: bold; text-decoration: none;">[Code]</a>
+    Xu C., Li G., Liao Z., Wang J. and Zhang W.
+    <u>Markovian Pre-Trained Transformer for Next-Item Recommendation.</u>
+    <i>arXiv</i>, 2026.
+    <a href="https://arxiv.org/abs/2601.08275" style="color: #007acc; font-weight: bold; text-decoration: none;">[PDF]</a>
+    <a href="https://github.com/BDML-lab/MPT" style="color: #007acc; font-weight: bold; text-decoration: none;">[Code]</a>
   </li>
 </ol>
+
 ```
-
-Reference rules:
-
-- Do not invent author list, venue, year, PDF URL, or code URL.
-- Omit the `[Code]` link when no code link is known.
-- Use the paper URL or arXiv URL as `[PDF]` when it is the best known source.
-- If venue or year is unknown, mark it as uncertain in the final response instead of fabricating it.
