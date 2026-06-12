@@ -6,7 +6,7 @@ import argparse
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 from .validator import SkillValidator
 
@@ -58,11 +58,20 @@ class FreeskillCLI:
         )
         validate_parser.set_defaults(func=self.validate_command)
 
-        install_parser = subparsers.add_parser("install", help="Install a skill into a target tool.")
-        install_parser.add_argument("skill_name", help="Skill name under skills/ or path to a skill.")
+        install_parser = subparsers.add_parser("install", help="Install skills into a target tool.")
+        install_parser.add_argument(
+            "skill_names",
+            nargs="*",
+            help="Skill names under skills/ or paths to skill directories.",
+        )
         install_parser.add_argument("--target", choices=["claude", "codex"], required=True)
         install_parser.add_argument("--scope", choices=["user", "project"], default="user")
         install_parser.add_argument("--mode", choices=["symlink", "copy"], default="symlink")
+        install_parser.add_argument(
+            "--all",
+            action="store_true",
+            help="Install all non-template skills from the skills root.",
+        )
         install_parser.add_argument(
             "--skills-root",
             type=Path,
@@ -84,13 +93,20 @@ class FreeskillCLI:
         return SkillValidator(skills_root=namespace.skills_root).validate_command(namespace.skills)
 
     def install_command(self, namespace: argparse.Namespace) -> int:
-        r"""Install one skill into a target tool."""
+        r"""Install one or more skills into a target tool."""
 
-        source_dir = self.resolve_skill_dir(namespace.skill_name, namespace.skills_root)
-        validation = SkillValidator(skill_dir=source_dir, skills_root=namespace.skills_root).validate()
-        self.print_validation_result(validation)
+        source_dirs = self.resolve_install_source_dirs(namespace)
+        if not source_dirs:
+            return 1
 
-        if validation.errors:
+        validations = [
+            SkillValidator(skill_dir=source_dir, skills_root=namespace.skills_root).validate()
+            for source_dir in source_dirs
+        ]
+        for validation in validations:
+            self.print_validation_result(validation)
+
+        if any(validation.errors for validation in validations):
             print("Install aborted because validation failed.", file=sys.stderr)
             return 1
 
@@ -98,22 +114,58 @@ class FreeskillCLI:
         if target_parent is None:
             target_parent = self.default_target_parent(namespace.target, namespace.scope)
 
-        target_dir = target_parent.expanduser() / source_dir.name
+        results: List[Tuple[str, Path, Path]] = []
+        failures = 0
+        for source_dir in source_dirs:
+            target_dir = target_parent.expanduser() / source_dir.name
+            action = self.install_one(source_dir, target_dir, namespace.mode)
+            results.append((action, source_dir, target_dir))
+            if action == "failed":
+                failures += 1
+
+        if len(results) == 1 and results[0][0] != "failed":
+            _, source_dir, target_dir = results[0]
+            self.print_install_summary(source_dir, namespace.target, namespace.scope, namespace.mode, target_dir)
+        else:
+            self.print_batch_install_summary(results, namespace.target, namespace.scope, namespace.mode)
+
+        return 1 if failures else 0
+
+    def resolve_install_source_dirs(self, namespace: argparse.Namespace) -> List[Path]:
+        r"""Resolve install arguments into source skill directories."""
+
+        if namespace.all and namespace.skill_names:
+            print("Install accepts either skill names or --all, not both.", file=sys.stderr)
+            return []
+
+        if namespace.all:
+            validator = SkillValidator(skills_root=namespace.skills_root)
+            return [path for path in validator.resolve_skill_paths([]) if not path.name.startswith("_")]
+
+        if not namespace.skill_names:
+            print("Install requires at least one skill name or --all.", file=sys.stderr)
+            return []
+
+        return [self.resolve_skill_dir(skill_name, namespace.skills_root) for skill_name in namespace.skill_names]
+
+    def install_one(self, source_dir: Path, target_dir: Path, mode: str) -> str:
+        r"""Install a single skill and return the action name."""
+
         try:
             should_install = self.ensure_available_target(target_dir, source_dir)
             if should_install:
-                self.install(source_dir, target_dir, namespace.mode)
+                self.install(source_dir, target_dir, mode)
+                return "installed"
+
+            return "skipped"
         except OSError as exc:
-            print(f"Install failed: {exc}", file=sys.stderr)
-            if namespace.mode == "symlink":
+            print(f"Install failed for {source_dir.name}: {exc}", file=sys.stderr)
+            if mode == "symlink":
                 print(
                     "Try again with --mode copy if the target does not support symlinks.",
                     file=sys.stderr,
                 )
-            return 1
-
-        self.print_install_summary(source_dir, namespace.target, namespace.scope, namespace.mode, target_dir)
-        return 0
+            return "failed"
 
     def default_target_parent(self, target: str, scope: str) -> Path:
         r"""Return the default target parent directory for a target and scope."""
@@ -193,6 +245,30 @@ class FreeskillCLI:
 
         print("\nManual verification")
         print("  Ask the target tool to describe when this skill should be used.")
+        print("  Installation only confirms file-level placement, not immediate tool recognition.")
+
+    def print_batch_install_summary(
+        self, results: Sequence[Tuple[str, Path, Path]], target: str, scope: str, mode: str
+    ) -> None:
+        r"""Print batch installation details and manual verification guidance."""
+
+        installed = sum(1 for action, _, _ in results if action == "installed")
+        skipped = sum(1 for action, _, _ in results if action == "skipped")
+        failed = sum(1 for action, _, _ in results if action == "failed")
+
+        print("\nInstall summary")
+        print(f"  target:    {target}")
+        print(f"  scope:     {scope}")
+        print(f"  mode:      {mode}")
+        print(f"  installed: {installed}")
+        print(f"  skipped:   {skipped}")
+        print(f"  failed:    {failed}")
+
+        for action, source_dir, target_dir in results:
+            print(f"  {action}: {source_dir.name} -> {target_dir}")
+
+        print("\nManual verification")
+        print("  Ask the target tool to describe when an installed skill should be used.")
         print("  Installation only confirms file-level placement, not immediate tool recognition.")
 
 

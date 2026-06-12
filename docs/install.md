@@ -12,6 +12,7 @@
 
 ```bash
 freeskill install <skill-name> --target <claude|codex> [--scope user|project] [--mode symlink|copy]
+freeskill install --all --target <claude|codex> [--scope user|project] [--mode symlink|copy]
 ```
 
 本地开发时可以使用:
@@ -20,6 +21,7 @@ freeskill install <skill-name> --target <claude|codex> [--scope user|project] [-
 python -m pip install -e .
 freeskill validate
 freeskill install <skill-name> --target <claude|codex>
+freeskill install --all --target <claude|codex>
 ```
 
 不安装包时也可以运行:
@@ -27,6 +29,7 @@ freeskill install <skill-name> --target <claude|codex>
 ```bash
 PYTHONPATH=src python -m freeskill.cli validate
 PYTHONPATH=src python -m freeskill.cli install <skill-name> --target <claude|codex>
+PYTHONPATH=src python -m freeskill.cli install --all --target <claude|codex>
 ```
 
 默认行为:
@@ -51,13 +54,14 @@ freeskill install <skill-name> --target <claude|codex> --target-dir /tmp/freeski
 ## 安装流程
 
 1. 定位 `skills/<skill-name>/`.
-2. 检查 `SKILL.md` 是否存在.
-3. 解析 `SKILL.md` frontmatter.
-4. 检查必需字段: `name` 和 `description`.
-5. 根据 `target` 和 `scope` 解析目标目录.
-6. 创建目标父目录.
-7. 使用 symlink 或 copy 安装.
-8. 输出安装摘要和人工验证提示.
+2. 若使用 `--all`, 定位所有非模板 skill 目录; `_template` 不会被批量安装.
+3. 检查 `SKILL.md` 是否存在.
+4. 解析 `SKILL.md` frontmatter.
+5. 检查必需字段: `name` 和 `description`.
+6. 根据 `target` 和 `scope` 解析目标目录.
+7. 创建目标父目录.
+8. 使用 symlink 或 copy 安装.
+9. 输出安装摘要和人工验证提示.
 
 ## 安装模式
 

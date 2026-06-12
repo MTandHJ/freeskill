@@ -16,12 +16,14 @@
 python -m pip install -e .
 freeskill validate
 freeskill install _template --target claude
+freeskill install --all --target codex
 ```
 
 安装包会内置当前仓库的 `skills/`. 因此完成 `pip install .` 后, 可以在任意目录运行:
 
 ```bash
 freeskill install format-code-style --target codex
+freeskill install --all --target codex
 ```
 
 不安装包时也可以直接运行:
