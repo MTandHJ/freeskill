@@ -14,8 +14,10 @@ python -m pip install freeskill
 
 ```text
 pyproject.toml
-setup.cfg
-setup.py
+skills/
+  __init__.py
+  <skill-name>/
+    SKILL.md
 src/
   freeskill/
     __init__.py
@@ -36,6 +38,7 @@ freeskill = freeskill.cli:main
 - 确认版本号已更新.
 - 确认 `freeskill validate` 通过.
 - 确认 `freeskill install` 的 symlink 和 copy 模式通过.
+- 确认 wheel 中包含 `freeskill_skills`.
 - 确认没有把 `.DS_Store`, 临时文件或私有数据打进包.
 
 ## 本地验证
@@ -106,13 +109,17 @@ python -m twine upload dist/*
 
 ## 发布边界
 
-当前 PyPI package 发布的是 CLI 和 validator 能力.
+PyPI package 发布 CLI, validator, 以及当前仓库 `skills/` 下的 skill 内容.
+安装后默认从内置 `freeskill_skills` 查找 skill, 因此可以在任意工作目录运行:
 
-skill 内容仍以仓库中的 `skills/` 为源. 使用 PyPI 安装 CLI 后, 可以通过以下方式指定 skill 仓库:
+```bash
+freeskill validate
+freeskill install format-code-style --target codex
+```
+
+如果需要使用本地开发版 skill, 可以通过 `--skills-root` 或 `FREESKILL_SKILLS_ROOT` 覆盖内置 skills:
 
 ```bash
 freeskill validate --skills-root /path/to/freeskill/skills
-freeskill install paper-reading --target claude --skills-root /path/to/freeskill/skills
+freeskill install paperpost --target claude --skills-root /path/to/freeskill/skills
 ```
-
-未来如果需要将稳定 skills 一起打包进 PyPI, 应单独设计 packaged skills 机制, 避免把个人实验 skill 默认发布给所有用户.

@@ -8,6 +8,7 @@
 - 校验 `SKILL.md` frontmatter.
 - 通过 symlink 或 copy 安装 skill.
 - 支持 Claude Code 和 Codex 的 user/project scope.
+- `pip install .` 后内置 `skills/`, 可在任意工作目录安装 skill.
 
 ## 本地使用
 
@@ -15,6 +16,12 @@
 python -m pip install -e .
 freeskill validate
 freeskill install _template --target claude
+```
+
+安装包会内置当前仓库的 `skills/`. 因此完成 `pip install .` 后, 可以在任意目录运行:
+
+```bash
+freeskill install format-code-style --target codex
 ```
 
 不安装包时也可以直接运行:

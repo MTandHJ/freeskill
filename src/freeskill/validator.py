@@ -6,6 +6,7 @@ import argparse
 import os
 import re
 import sys
+from importlib import resources
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -15,6 +16,7 @@ __all__ = ["SkillValidator"]
 DESCRIPTION_MIN_LENGTH = 20
 REFERENCE_PATTERN = re.compile(r"(?P<path>(?:scripts|references|assets)/[A-Za-z0-9._/\-]+)")
 VALID_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+IGNORED_SKILL_DIRS = {"__pycache__"}
 
 
 class SkillValidator:
@@ -47,6 +49,32 @@ class SkillValidator:
         return Path(__file__).resolve().parents[2]
 
     @classmethod
+    def source_skills_root(cls) -> Optional[Path]:
+        r"""Return the live checkout skills root when running from source."""
+
+        root = cls.source_checkout_root()
+        skills_root = root / "skills"
+        if (root / "pyproject.toml").is_file() and skills_root.is_dir():
+            return skills_root
+
+        return None
+
+    @classmethod
+    def packaged_skills_root(cls) -> Optional[Path]:
+        r"""Return the packaged skills root when freeskill is installed."""
+
+        try:
+            package_root = resources.files("freeskill_skills")
+        except ModuleNotFoundError:
+            return None
+
+        with resources.as_file(package_root) as path:
+            if path.is_dir():
+                return path
+
+        return None
+
+    @classmethod
     def default_skills_root(cls) -> Path:
         r"""Return the default skills root."""
 
@@ -54,9 +82,13 @@ class SkillValidator:
         if env_root:
             return Path(env_root).expanduser()
 
-        cwd_skills = Path.cwd() / "skills"
-        if cwd_skills.exists():
-            return cwd_skills
+        source_root = cls.source_skills_root()
+        if source_root is not None:
+            return source_root
+
+        packaged_root = cls.packaged_skills_root()
+        if packaged_root is not None:
+            return packaged_root
 
         return cls.source_checkout_root() / "skills"
 
@@ -149,7 +181,11 @@ class SkillValidator:
         if not args:
             if not self.skills_root.exists():
                 return []
-            return sorted(path for path in self.skills_root.iterdir() if path.is_dir() and not path.name.startswith("."))
+            return sorted(
+                path
+                for path in self.skills_root.iterdir()
+                if path.is_dir() and path.name not in IGNORED_SKILL_DIRS and not path.name.startswith(".")
+            )
 
         paths = []
         for arg in args:

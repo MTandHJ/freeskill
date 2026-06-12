@@ -12,5 +12,22 @@ requires-python = ">=3.10"
 [project.scripts]
 freeskill = "freeskill.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools]
+packages = ["freeskill", "freeskill_skills"]
+
+[tool.setuptools.package-dir]
+freeskill = "src/freeskill"
+freeskill_skills = "skills"
+
+[tool.setuptools.package-data]
+freeskill_skills = ["**/*"]
+
+[tool.setuptools.exclude-package-data]
+freeskill_skills = [
+    ".DS_Store",
+    "**/.DS_Store",
+    "__pycache__/*",
+    "**/__pycache__/*",
+    "*.pyc",
+    "**/*.pyc",
+]
