@@ -11,6 +11,7 @@ Use this skill to run and analyze freerec recommendation experiments from the us
 
 - Dataset construction: use `freerec make`; read `references/make.md`.
 - Parameter tuning and hyperparameter search: use `freerec tune`; read `references/tune.md`.
+- Tuning process summary: maintain `tuning/[TaskName].md` for multi-round tuning.
 - Result summarization: read `references/results.md`; use `scripts/summarize_tune_results.py` or `scripts/read_best.py`.
 - Metric interpretation: read `references/results.md` for `valid`, `best`, and `test`.
 
@@ -23,6 +24,7 @@ prepare data -> freerec make -> configure search -> freerec tune -> summarize re
 ## Common Paths
 
 - Dataset-specific configs: `configs/[dataset].yaml`.
+- Tuning task summary: `tuning/[TaskName].md`.
 - Tune summary: `logs/[ExperimentName]/core/results.json`.
 - Single run output: `logs/[ExperimentName]/[dataset]/[id]/`.
 - Single run valid/best/test snapshot: `logs/[ExperimentName]/[dataset]/[id]/data/best.pkl`.

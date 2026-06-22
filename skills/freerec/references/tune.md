@@ -57,3 +57,65 @@ logs/[ExperimentName]/
     ├── summary/{SUMMARY.md,*.png}
     └── data/{monitors.pkl, best.pkl}
 ```
+
+## Tuning Summary
+
+For multi-round tuning, maintain one project-level summary:
+
+```text
+tuning/[TaskName].md
+```
+
+Use a task name that identifies the model, dataset, or goal. Update the summary before and after each round:
+
+```md
+# [TaskName]
+
+## Goal
+
+- Dataset:
+- Model:
+- Target metric:
+- Base config:
+- Experiments:
+
+## Search Process
+
+### Round 1: [ExperimentName]
+
+- Search space:
+- Rationale:
+- Result:
+
+| Rank | Params | Valid | Best | Notes |
+| --- | --- | --- | --- | --- |
+| 1 |  |  |  |  |
+| 2 |  |  |  |  |
+| 3 |  |  |  |  |
+
+- Finding:
+
+
+### Round 2: [ExperimentName]
+
+...
+
+## Final Choice
+
+| Field | Value |
+| --- | --- |
+| Best params |  |
+| Best valid |  |
+| Final best |  |
+
+- Recommended config:
+
+## Findings
+
+- Sensitive parameters:
+- Failed or ignored settings:
+- Resource notes:
+- Next tuning direction:
+```
+
+Prefer tables for comparable results, especially top runs and final choices. `Result` must come from `results.json`. Use `valid` to explain tuning decisions and `best` for final metric reporting.
