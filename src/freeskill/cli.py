@@ -73,6 +73,11 @@ class FreeskillCLI:
             help="Install all non-template skills from the skills root.",
         )
         install_parser.add_argument(
+            "--no-overwrite",
+            action="store_true",
+            help="Fail instead of replacing an existing target skill directory.",
+        )
+        install_parser.add_argument(
             "--skills-root",
             type=Path,
             default=SkillValidator.default_skills_root(),
@@ -118,7 +123,7 @@ class FreeskillCLI:
         failures = 0
         for source_dir in source_dirs:
             target_dir = target_parent.expanduser() / source_dir.name
-            action = self.install_one(source_dir, target_dir, namespace.mode)
+            action = self.install_one(source_dir, target_dir, namespace.mode, overwrite=not namespace.no_overwrite)
             results.append((action, source_dir, target_dir))
             if action == "failed":
                 failures += 1
@@ -148,19 +153,18 @@ class FreeskillCLI:
 
         return [self.resolve_skill_dir(skill_name, namespace.skills_root) for skill_name in namespace.skill_names]
 
-    def install_one(self, source_dir: Path, target_dir: Path, mode: str) -> str:
+    def install_one(self, source_dir: Path, target_dir: Path, mode: str, overwrite: bool) -> str:
         r"""Install a single skill and return the action name."""
 
         try:
-            should_install = self.ensure_available_target(target_dir, source_dir)
-            if should_install:
+            action = self.prepare_target(target_dir, source_dir, overwrite)
+            if action != "skipped":
                 self.install(source_dir, target_dir, mode)
-                return "installed"
 
-            return "skipped"
+            return action
         except OSError as exc:
             print(f"Install failed for {source_dir.name}: {exc}", file=sys.stderr)
-            if mode == "symlink":
+            if mode == "symlink" and not isinstance(exc, FileExistsError):
                 print(
                     "Try again with --mode copy if the target does not support symlinks.",
                     file=sys.stderr,
@@ -206,23 +210,33 @@ class FreeskillCLI:
         for message in validation.warnings:
             print(f"WARNING {label}: {message}", file=sys.stderr)
 
-    def ensure_available_target(self, target_dir: Path, source_dir: Path) -> bool:
-        r"""Return whether target_dir can be installed into."""
+    def prepare_target(self, target_dir: Path, source_dir: Path, overwrite: bool) -> str:
+        r"""Prepare target_dir and return the install action."""
 
         if not target_dir.exists() and not target_dir.is_symlink():
-            return True
+            return "installed"
 
         if target_dir.is_symlink():
             try:
                 if target_dir.resolve() == source_dir.resolve():
                     print(f"Already installed: {target_dir} -> {source_dir}")
-                    return False
+                    return "skipped"
             except FileNotFoundError:
                 pass
 
-        raise FileExistsError(
-            f"target already exists and will not be overwritten without an explicit future option: {target_dir}"
-        )
+        if not overwrite:
+            raise FileExistsError(f"target already exists: {target_dir}")
+
+        self.remove_target(target_dir)
+        return "updated"
+
+    def remove_target(self, target_dir: Path) -> None:
+        r"""Remove an existing target skill directory or symlink."""
+
+        if target_dir.is_symlink() or target_dir.is_file():
+            target_dir.unlink()
+        else:
+            shutil.rmtree(target_dir)
 
     def install(self, source_dir: Path, target_dir: Path, mode: str) -> None:
         r"""Install a skill by symlink or copy."""
@@ -253,6 +267,7 @@ class FreeskillCLI:
         r"""Print batch installation details and manual verification guidance."""
 
         installed = sum(1 for action, _, _ in results if action == "installed")
+        updated = sum(1 for action, _, _ in results if action == "updated")
         skipped = sum(1 for action, _, _ in results if action == "skipped")
         failed = sum(1 for action, _, _ in results if action == "failed")
 
@@ -261,6 +276,7 @@ class FreeskillCLI:
         print(f"  scope:     {scope}")
         print(f"  mode:      {mode}")
         print(f"  installed: {installed}")
+        print(f"  updated:   {updated}")
         print(f"  skipped:   {skipped}")
         print(f"  failed:    {failed}")
 

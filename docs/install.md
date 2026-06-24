@@ -11,8 +11,8 @@
 安装为 Python package 后, 标准命令是:
 
 ```bash
-freeskill install <skill-name> --target <claude|codex> [--scope user|project] [--mode symlink|copy]
-freeskill install --all --target <claude|codex> [--scope user|project] [--mode symlink|copy]
+freeskill install <skill-name> --target <claude|codex> [--scope user|project] [--mode symlink|copy] [--no-overwrite]
+freeskill install --all --target <claude|codex> [--scope user|project] [--mode symlink|copy] [--no-overwrite]
 ```
 
 本地开发时可以使用:
@@ -37,6 +37,7 @@ PYTHONPATH=src python -m freeskill.cli install --all --target <claude|codex>
 ```text
 --scope user
 --mode symlink
+overwrite existing target skill directories
 ```
 
 实现和测试阶段可以支持目标父目录覆盖:
@@ -60,8 +61,9 @@ freeskill install <skill-name> --target <claude|codex> --target-dir /tmp/freeski
 5. 检查必需字段: `name` 和 `description`.
 6. 根据 `target` 和 `scope` 解析目标目录.
 7. 创建目标父目录.
-8. 使用 symlink 或 copy 安装.
-9. 输出安装摘要和人工验证提示.
+8. 如果目标 skill 已存在且不是同源 symlink, 默认覆盖.
+9. 使用 symlink 或 copy 安装.
+10. 输出安装摘要和人工验证提示.
 
 ## 安装模式
 
@@ -165,7 +167,7 @@ Was paper-reading installed successfully?
 - 必需 frontmatter 缺失.
 - target 未知.
 - scope 未知.
-- 目标路径已存在且不是 freeskill 管理的链接或副本.
+- 使用 `--no-overwrite` 且目标路径已存在.
 - symlink 创建失败.
 
 如果 symlink 失败, installer 可以提示使用 `--mode copy`.
