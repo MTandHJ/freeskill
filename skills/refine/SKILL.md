@@ -15,6 +15,14 @@ Requires `spec.md`. If `spec.md` is missing, ask whether to run `/align` first o
 
 Discuss implementation details, settle the final approach, and record only the confirmed plan. Do not preserve rejected alternatives in `plan.md`.
 
+## Workflow
+
+1. Read `spec.md` and identify implementation details that are still ambiguous.
+2. Discuss important details with the user before writing the final plan.
+3. Actively provide option comparisons for important implementation choices.
+4. Summarize the final agreed approach after the key details are settled.
+5. Write or update `plan.md` only after the user confirms the refined implementation direction.
+
 ## Output
 
 Write or update `plan.md` after the user confirms the refined implementation direction.
@@ -39,6 +47,7 @@ Use this structure:
 
 - Preserve the goals, non-goals, constraints, and acceptance criteria from `spec.md`.
 - Do not duplicate `spec.md`; summarize only what is needed to understand the implementation plan.
+- Prefer asking about unclear implementation details before drafting `plan.md`.
 - Discuss alternatives with the user when useful, but write only the final agreed approach.
 - Cover implementation structure, important files, interfaces, data shape, user-visible behavior, and compatibility concerns when relevant.
 - Keep validation design for `/eval` and task sequencing for `/todo`.
